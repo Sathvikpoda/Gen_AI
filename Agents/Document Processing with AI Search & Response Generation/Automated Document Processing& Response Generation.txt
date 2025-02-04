@@ -1,0 +1,59 @@
+🔍 Overview
+This script monitors a folder for new or modified PDF, TXT, and DOCX files, extracts text, splits it into smaller chunks, generates AI-powered embeddings, stores them in FAISS for quick searching, and allows you to ask questions about the documents.
+
+⚡ How It Works
+Watches a folder for new or updated files.
+Extracts text from PDF, TXT, and Word (DOCX) files.
+Splits text into smaller chunks for better processing.
+Uses AI to generate embeddings and stores them in FAISS.
+Lets you ask questions about the documents.
+Uses AI agents to generate structured responses.
+
+📂 Folder to Monitor
+The script monitors this folder:
+C:\Users\sathv\Gen-AI\python\Python\Chunking\continuous_cunking
+
+💡 You can change this folder path in the script if needed.
+
+🔧 Requirements
+Before running the script, install the required Python libraries:
+pip install pymupdf langchain faiss-cpu sentence-transformers openai python-dotenv python-docx numpy
+
+🚀 How to Run
+Set up your OpenAI API Key inside a .env file:
+OPENAI_API_KEY=your_api_key_here
+
+Open a terminal or command prompt.
+Run the script:
+python script_name.py
+The script runs continuously, checking for new files every minute.
+🛠 Features
+✅ Monitors a folder for new files
+✅ Extracts text from PDF, TXT, and DOCX files
+✅ Splits text into smaller chunks for processing
+✅ Uses FAISS for AI-powered document search
+✅ Lets you ask questions about the documents
+✅ Uses two AI agents to refine responses
+
+📌 Example Output
+When a new document is added, the script processes it:
+Processing file: document.pdf
+Document processed and stored in FAISS for document.pdf
+You can enter a question related to the documents:
+
+Enter your query: What is the main topic of the document?
+The AI provides a structured answer:
+Refined Generated Response:
+- The document discusses machine learning models.
+- It explains how embeddings work in AI.
+- It includes examples of document chunking.
+🛑 How to Stop the Script
+
+To stop the script, press:
+CTRL + C
+
+📌 Notes
+The script only processes new or modified files.
+It runs in a loop, checking for files every 1 minute.
+FAISS is used for fast AI-powered search.
+Two AI agents work together to generate better responses.
