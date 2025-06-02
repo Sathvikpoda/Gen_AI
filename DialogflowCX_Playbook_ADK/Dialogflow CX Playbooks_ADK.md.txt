@@ -1,0 +1,306 @@
+📘 Dialogflow CX Playbooks - Full Walkthrough with Real Example (README Style)
+
+🎯 Goal
+
+Create a Playbook to handle this student request:
+
+"What is my quiz score and explain Chapter 3?"
+
+We’ll build a Playbook that:
+
+Collects student ID, quiz ID, and chapter name
+
+Calls a Webhook to get quiz score
+
+Calls Gemini (LLM) to summarize Chapter 3
+
+Handles fallback if one tool fails
+
+Uses versioning and staging before production
+
+
+✅ Step-by-Step Setup (README Style)
+
+✅ Step 1: Create the Intent
+
+Intent Name: Student.ScoreAndSummary
+
+Add training phrases:
+
+"What’s my quiz score and explain Chapter 3"
+
+"Give me marks and summary"
+
+Add parameters:
+
+student_id (Required)
+
+quiz_id (Required)
+
+chapter_name (Required)
+
+🧠 This intent will trigger the Playbook.
+
+✅ Step 2: Create the Playbook
+
+Playbook Name: QuizScoreAndChapterSummary
+
+Define Parameters:
+
+parameters:
+  - name: student_id
+    type: string
+    required: true
+  - name: quiz_id
+    type: string
+    required: true
+  - name: chapter_name
+    type: string
+    required: true
+
+✅ Step 3: Add Tools to the Playbook
+
+Tool 1: Webhook (Quiz Score)
+
+tool:
+  name: ScoreTask
+  type: webhook
+  endpoint: https://your-cloud-run-service/score
+  method: POST
+  payload:
+    student_id: $student_id
+    quiz_id: $quiz_id
+
+Tool 2: Gemini LLM (Chapter Summary)
+
+tool:
+  name: SummaryTask
+  type: llm
+  model: gemini-pro
+  prompt: "Summarize Chapter $chapter_name for a student in simple terms."
+  temperature: 0.7
+
+✅ Step 4: Set Execution Mode
+
+execution_mode: PARALLEL
+
+🧠 This runs both tools at the same time for faster response.
+
+✅ Step 5: Map Outputs
+
+outputMappings:
+  - from: ScoreTask.score
+    to: score
+  - from: SummaryTask.text
+    to: summary
+
+✅ Step 6: Set Final Response Template
+
+responseTemplates:
+  - "You scored $score in Quiz $quiz_id. Here's a summary of Chapter $chapter_name: $summary"
+
+✅ Step 7: Handle Fallbacks
+
+errorHandlers:
+  - onFailure: SummaryTask
+    fallbackMessage: "I couldn’t fetch your score, but here’s the chapter summary."
+  - onFailure: ScoreTask
+    fallbackMessage: "Sorry, couldn’t get the summary, but your score is $score."
+
+🧠 Playbooks let you define multiple fallback options based on which tool fails.
+
+✅ Step 8: Connect the Playbook to the Intent
+
+In your Student.ScoreAndSummary intent route, select Call Playbook
+
+Choose QuizScoreAndChapterSummary
+
+🎯 Now when this intent is triggered, the Playbook runs.
+
+✅ Step 9: Version Control & Staging
+
+Click Create Version from Playbook editor
+
+Name it: v1-score-summary
+
+Test in Staging Environment:
+
+Add sample payloads
+
+Verify Webhook and Gemini outputs
+
+
+
+
+🧠 ADK (Agent Development Kit) - Full README for Quiz Score + Chapter Summary Agent
+
+🎯 Goal
+
+Build a modular AI system using ADK where the user asks:
+
+"What is my quiz score and explain Chapter 3?"
+
+We'll create:
+
+Two sub-agents:
+
+ScoreAgent (calls API to get quiz score)
+
+SummaryAgent (calls Gemini LLM to summarize chapter)
+
+One SteeringAgent that:
+
+Accepts user input
+
+Runs both sub-agents in parallel
+
+Combines the results
+
+Optionally sends to LLM for final polishing
+
+🧩 Folder Structure
+
+adk-student-helper/
+├── main.py
+├── steering_agent.py
+├── agents/
+│   ├── score_agent.py
+│   └── summary_agent.py
+├── tools/
+│   ├── score_tool.py
+│   └── summary_tool.py
+├── schemas.py
+├── shared_context.py
+├── agent.yaml
+
+✅ Step-by-Step Instructions
+
+🔹 1. Define Input/Output Schemas in schemas.py
+
+from pydantic import BaseModel
+
+class UserInput(BaseModel):
+    student_id: str
+    quiz_id: str
+    chapter_name: str
+
+class ScoreOutput(BaseModel):
+    score: str
+
+class SummaryOutput(BaseModel):
+    summary: str
+
+🔹 2. Build Score Tool in score_tool.py
+
+from schemas import UserInput, ScoreOutput
+from adk.classes import BaseTool
+
+class ScoreTool(BaseTool):
+    def run(self, input: UserInput) -> ScoreOutput:
+        # Simulate DB/API call
+        return ScoreOutput(score="85")
+
+🔹 3. Build Summary Tool in summary_tool.py
+
+from schemas import UserInput, SummaryOutput
+from adk.classes import BaseTool
+from vertexai.language_models import TextGenerationModel
+
+class SummaryTool(BaseTool):
+    def run(self, input: UserInput) -> SummaryOutput:
+        model = TextGenerationModel.from_pretrained("gemini-pro")
+        prompt = f"Summarize Chapter {input.chapter_name} in simple terms."
+        result = model.predict(prompt)
+        return SummaryOutput(summary=result.text)
+
+🔹 4. Create Score Agent in score_agent.py
+
+from adk.classes import BaseAgent
+from schemas import UserInput, ScoreOutput
+from tools.score_tool import ScoreTool
+
+class ScoreAgent(BaseAgent):
+    def run(self, input: UserInput) -> ScoreOutput:
+        return ScoreTool().run(input)
+
+🔹 5. Create Summary Agent in summary_agent.py
+
+from adk.classes import BaseAgent
+from schemas import UserInput, SummaryOutput
+from tools.summary_tool import SummaryTool
+
+class SummaryAgent(BaseAgent):
+    def run(self, input: UserInput) -> SummaryOutput:
+        return SummaryTool().run(input)
+
+🔹 6. Create the Steering Agent in steering_agent.py
+
+from schemas import UserInput
+from agents.score_agent import ScoreAgent
+from agents.summary_agent import SummaryAgent
+from adk.classes import BaseSteeringAgent
+import asyncio
+
+class SteeringAgent(BaseSteeringAgent):
+    async def run(self, input: UserInput):
+        score_task = asyncio.create_task(ScoreAgent().run(input))
+        summary_task = asyncio.create_task(SummaryAgent().run(input))
+
+        score_result = await score_task
+        summary_result = await summary_task
+
+        return {
+            "message": f"You scored {score_result.score}. Summary of Chapter {input.chapter_name}: {summary_result.summary}"
+        }
+
+🔹 7. Register and Run the Agent in main.py
+
+from steering_agent import SteeringAgent
+from schemas import UserInput
+import asyncio
+
+if __name__ == "__main__":
+    input_data = UserInput(student_id="S123", quiz_id="Quiz1", chapter_name="3")
+    result = asyncio.run(SteeringAgent().run(input_data))
+    print(result["message"])
+
+🛡️ Fallbacks (Manual)
+
+In SteeringAgent, use try-except around each task
+
+If a tool fails, return fallback response or run alternate tool
+
+🧪 Version Control
+
+Use Git to version the entire ADK project
+
+Tag releases: v1.0, v1.1-fallbacks, etc.
+
+Maintain separate branches for staging and prod agents
+
+
+
+
+“The working model of ADK and Playbooks is similar: both act like orchestration layers.
+In Playbooks, I define Tasks like Webhook and LLM and connect them in a routine using execution order.
+In ADK, I create tools in Python and use a SteeringAgent to route requests to sub-agents.
+The difference is: Playbooks are no-code and work within Dialogflow CX; ADK is full-code and gives me total flexibility, like integrating external APIs, custom RAG logic, or parallel workflows.”
+
+✅ High-Level Similarities
+Feature	Playbooks                  (Dialogflow CX)	                        ADK (Agent Development Kit)
+Modular logic	                   ✅ Yes (Tasks + Routines)	                ✅ Yes (Tools + Agents + Steering Agent)
+Steering capability	           ✅ Main Playbook can call multiple Tasks	✅ Steering Agent calls multiple Sub-Agents
+Parallel/serial execution          ✅ Execution mode available	                ✅ Use asyncio or controlled logic
+Reusable flows	                    ✅ Yes	                                ✅ Yes
+Handles fallback	           ✅ With errorHandlers	                ✅ Manually via try/except
+Output mapping	                    ✅ Yes	                                ✅ Yes via structured schema
+
+❗ Key Differences  
+        Feature	                 Playbooks	                                	     ADK
+Code required?	               ❌ No code, all config + GUI	                            ✅ Full Python code needed
+LLM integration			Pre-integrated with Gemini, PaLM	                    Custom LLM logic (Gemini, OpenAI, Vertex, LangChain, etc.)
+Extensibility           	Limited to tools offered in Dialogflow	 		    Highly extensible — integrate any Python logic, DBs, APIs, etc.
+Use case complexity		Best for medium-complex flows in contact center/chatbots     Best for complex workflows, multi-agent orchestration
+Deployment			Inside Dialogflow CX GUI				      Deployable anywhere (Cloud Run, GKE, local)
+
+
